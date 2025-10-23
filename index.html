@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>今晚吃什么 - 转盘决定</title>
+  <!-- Tailwind CSS v3 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome -->
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#FF6B35',
+            secondary: '#4CB9E7',
+            accent: '#FFD166',
+            neutral: '#F8F9FA',
+            dark: '#343A40'
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+          animation: {
+            'spin-slow': 'spin 3s linear infinite',
+            'bounce-slow': 'bounce 2s infinite',
+          }
+        }
+      }
+    }
+  </script>
+  
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .text-shadow {
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      .text-shadow-lg {
+        text-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      }
+      .rotate-origin-center {
+        transform-origin: center center;
+      }
+      .clip-path-triangle {
+        clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+      }
+    }
+    
+    /* 自定义样式 */
+    body {
+      background-color: #F8F9FA;
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+    
+    .wheel-container {
+      position: relative;
+      width: 100%;
+      max-width: 500px;
+      aspect-ratio: 1/1;
+      margin: 0 auto;
+    }
+    
+    .wheel {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      border-radius: 50%;
+      overflow: hidden;
+      transition: transform 5s cubic-bezier(0.1, 0.05, 0.05, 0.95);
+      box-shadow: 0 0 0 10px white, 0 0 20px rgba(0,0,0,0.1);
+    }
+    
+    .wheel-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 50px;
+      height: 50px;
+      background-color: #FF6B35;
+      border-radius: 50%;
+      z-index: 10;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+    }
+    
+    .wheel-pointer {
+      position: absolute;
+      top: -20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 40px;
+      height: 40px;
+      background-color: #FF6B35;
+      clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+      z-index: 5;
+      box-shadow: 0 0 5px rgba(0,0,0,0.2);
+    }
+    
+    .wheel-slice {
+      position: absolute;
+      width: 50%;
+      height: 50%;
+      transform-origin: 100% 100%;
+      left: 50%;
+      top: 0;
+      border-radius: 0 0 0 100%;
+    }
+    
+    .wheel-slice-text {
+      position: absolute;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      transform-origin: 100% 100%;
+      transform: rotate(45deg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding-left: 20px;
+      box-sizing: border-box;
+      color: white;
+      font-weight: bold;
+      font-size: 14px;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    
+    .option-item {
+      transition: all 0.3s ease;
+    }
+    
+    .option-item:hover {
+      transform: translateY(-3px);
+    }
+    
+    .history-item {
+      animation: fadeIn 0.5s ease;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .spin-button {
+      transition: all 0.3s ease;
+    }
+    
+    .spin-button:hover {
+      transform: scale(1.05);
+    }
+    
+    .spin-button:active {
+      transform: scale(0.95);
+    }
+    
+    .confetti {
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      opacity: 0;
+      animation: confetti 5s ease-in-out infinite;
+    }
+    
+    @keyframes confetti {
+      0% {
+        transform: translateY(0) rotate(0deg);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(100vh) rotate(720deg);
+        opacity: 0;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-b from-neutral to-gray-100">
+  <div class="container mx-auto px-4 py-8 max-w-5xl">
+    <!-- 头部 -->
+    <header class="text-center mb-8">
+      <h1 class="text-4xl md:text-5xl font-bold text-primary mb-2 text-shadow-lg">今晚吃什么</h1>
+      <p class="text-gray-600 text-lg">让转盘帮你做决定，告别选择困难症！</p>
+    </header>
+    
+    <!-- 主要内容区 -->
+    <div class="flex flex-col lg:flex-row gap-8">
+      <!-- 左侧：转盘区域 -->
+      <div class="lg:w-3/5 flex flex-col items-center">
+        <div class="wheel-container mb-6">
+          <div class="wheel-pointer"></div>
+          <div id="wheel" class="wheel">
+            <!-- 转盘分区将通过JS动态生成 -->
+          </div>
+          <div class="wheel-center">
+            <i class="fa fa-cutlery"></i>
+          </div>
+        </div>
+        
+        <div class="flex flex-col items-center">
+          <button id="spinButton" class="spin-button bg-primary hover:bg-primary/90 text-white font-bold py-3 px-8 rounded-full text-xl shadow-lg mb-4 flex items-center gap-2">
+            <i class="fa fa-random"></i>
+            <span>转动转盘</span>
+          </button>
+          
+          <div id="resultDisplay" class="hidden bg-white rounded-lg shadow-lg p-6 w-full max-w-md text-center">
+            <h3 class="text-xl font-bold text-gray-800 mb-2">恭喜！</h3>
+            <p class="text-2xl font-bold text-primary mb-4" id="resultText">今晚吃 火锅</p>
+            <div class="flex justify-center">
+              <button id="saveResultButton" class="bg-secondary hover:bg-secondary/90 text-white font-bold py-2 px-4 rounded-lg mr-2 flex items-center gap-1">
+                <i class="fa fa-check"></i>
+                <span>保存结果</span>
+              </button>
+              <button id="spinAgainButton" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg flex items-center gap-1">
+                <i class="fa fa-refresh"></i>
+                <span>再转一次</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 右侧：选项管理和历史记录 -->
+      <div class="lg:w-2/5">
+        <!-- 选项管理 -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+          <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+            <i class="fa fa-list-ul text-primary mr-2"></i>
+            食物选项
+          </h2>
+          
+          <div class="flex mb-4">
+            <input type="text" id="newOptionInput" placeholder="添加新的食物选项..." class="flex-1 border border-gray-300 rounded-l-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary">
+            <button id="addOptionButton" class="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-r-lg">
+              <i class="fa fa-plus"></i>
+            </button>
+          </div>
+          
+          <div id="optionsList" class="max-h-60 overflow-y-auto pr-2">
+            <!-- 选项列表将通过JS动态生成 -->
+          </div>
+          
+          <div class="mt-4 text-sm text-gray-500">
+            <p>提示：点击选项可以编辑或删除</p>
+          </div>
+        </div>
+        
+        <!-- 历史记录 -->
+        <div class="bg-white rounded-xl shadow-lg p-6">
+          <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+            <i class="fa fa-history text-primary mr-2"></i>
+            历史记录
+          </h2>
+          
+          <div id="historyList" class="max-h-60 overflow-y-auto pr-2">
+            <!-- 历史记录将通过JS动态生成 -->
+            <p class="text-gray-500 text-center italic">暂无历史记录</p>
+          </div>
+          
+          <div class="mt-4 flex justify-end">
+            <button id="clearHistoryButton" class="text-sm text-gray-500 hover:text-red-500 flex items-center">
+              <i class="fa fa-trash mr-1"></i>
+              <span>清空记录</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 底部 -->
+    <footer class="mt-12 text-center text-gray-500 text-sm">
+      <p>© 2025 今晚吃什么 - 转盘决定 | 告别选择困难症</p>
+    </footer>
+  </div>
+  
+  <!-- 编辑选项模态框 -->
+  <div id="editOptionModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+      <h3 class="text-xl font-bold text-gray-800 mb-4">编辑选项</h3>
+      
+      <div class="mb-4">
+        <label for="editOptionInput" class="block text-gray-700 mb-2">食物名称</label>
+        <input type="text" id="editOptionInput" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary">
+      </div>
+      
+      <div class="flex justify-end gap-2">
+        <button id="cancelEditButton" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg">
+          取消
+        </button>
+        <button id="saveEditButton" class="bg-primary hover:bg-primary/90 text-white font-bold py-2 px-4 rounded-lg">
+          保存
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // 全局变量
+    let foodOptions = [
+      { id: 1, name: '火锅', icon: '🍲' },
+      { id: 2, name: '烧烤', icon: '🍢' },
+      { id: 3, name: '寿司', icon: '🍣' },
+      { id: 4, name: '汉堡', icon: '🍔' },
+      { id: 5, name: '披萨', icon: '🍕' },
+      { id: 6, name: '炸鸡', icon: '🍗' }
+    ];
+    
+    let historyRecords = [];
+    let isSpinning = false;
+    let currentEditIndex = -1;
+    
+    // 颜色配置
+    const sliceColors = [
+      '#FF6B35', '#4CB9E7', '#FFD166', '#06D6A0', '#118AB2', '#073B4C',
+      '#EF476F', '#FFD166', '#06D6A0', '#118AB2', '#073B4C', '#FF6B35'
+    ];
+    
+    // DOM 元素
+    const wheelElement = document.getElementById('wheel');
+    const spinButton = document.getElementById('spinButton');
+    const resultDisplay = document.getElementById('resultDisplay');
+    const resultText = document.getElementById('resultText');
+    const saveResultButton = document.getElementById('saveResultButton');
+    const spinAgainButton = document.getElementById('spinAgainButton');
+    const newOptionInput = document.getElementById('newOptionInput');
+    const addOptionButton = document.getElementById('addOptionButton');
+    const optionsList = document.getElementById('optionsList');
+    const historyList = document.getElementById('historyList');
+    const clearHistoryButton = document.getElementById('clearHistoryButton');
+    const editOptionModal = document.getElementById('editOptionModal');
+    const editOptionInput = document.getElementById('editOptionInput');
+    const cancelEditButton = document.getElementById('cancelEditButton');
+    const saveEditButton = document.getElementById('saveEditButton');
+    
+    // 初始化
+    function init() {
+      renderWheel();
+      renderOptionsList();
+      loadFromLocalStorage();
+      
+      // 添加事件监听器
+      spinButton.addEventListener('click', spinWheel);
+      saveResultButton.addEventListener('click', saveResult);
+      spinAgainButton.addEventListener('click', spinAgain);
+      addOptionButton.addEventListener('click', addOption);
+      newOptionInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') addOption();
+      });
+      clearHistoryButton.addEventListener('click', clearHistory);
+      cancelEditButton.addEventListener('click', closeEditModal);
+      saveEditButton.addEventListener('click', saveEdit);
+    }
+    
+    // 从本地存储加载数据
+    function loadFromLocalStorage() {
+      const savedOptions = localStorage.getItem('foodOptions');
+      const savedHistory = localStorage.getItem('historyRecords');
+      
+      if (savedOptions) {
+        foodOptions = JSON.parse(savedOptions);
+        renderWheel();
+        renderOptionsList();
+      }
+      
+      if (savedHistory) {
+        historyRecords = JSON.parse(savedHistory);
+        renderHistoryList();
+      }
+    }
+    
+    // 保存数据到本地存储
+    function saveToLocalStorage() {
+      localStorage.setItem('foodOptions', JSON.stringify(foodOptions));
+      localStorage.setItem('historyRecords', JSON.stringify(historyRecords));
+    }
+    
+    // 渲染转盘
+    function renderWheel() {
+      if (foodOptions.length === 0) {
+        wheelElement.innerHTML = '<div class="flex items-center justify-center w-full h-full text-gray-500"><p>请先添加食物选项</p></div>';
+        spinButton.disabled = true;
+        spinButton.classList.add('opacity-50', 'cursor-not-allowed');
+        return;
+      }
+      
+      spinButton.disabled = false;
+      spinButton.classList.remove('opacity-50', 'cursor-not-allowed');
+      
+      wheelElement.innerHTML = '';
+      const sliceAngle = 360 / foodOptions.length;
+      
+      foodOptions.forEach((option, index) => {
+        const slice = document.createElement('div');
+        slice.className = 'wheel-slice';
+        slice.style.backgroundColor = sliceColors[index % sliceColors.length];
+        slice.style.transform = `rotate(${index * sliceAngle}deg)`;
+        
+        const text = document.createElement('div');
+        text.className = 'wheel-slice-text';
+        text.textContent = `${option.icon} ${option.name}`;
+        
+        slice.appendChild(text);
+        wheelElement.appendChild(slice);
+      });
+    }
+    
+    // 渲染选项列表
+    function renderOptionsList() {
+      if (foodOptions.length === 0) {
+        optionsList.innerHTML = '<p class="text-gray-500 text-center italic">暂无选项，请添加</p>';
+        return;
+      }
+      
+      optionsList.innerHTML = '';
+      foodOptions.forEach((option, index) => {
+        const item = document.createElement('div');
+        item.className = 'option-item flex items-center justify-between bg-gray-50 rounded-lg p-3 mb-2 hover:bg-gray-100 cursor-pointer';
+        item.innerHTML = `
+          <div class="flex items-center">
+            <span class="w-8 h-8 rounded-full flex items-center justify-center mr-3" style="background-color: ${sliceColors[index % sliceColors.length]}">
+              ${option.icon}
+            </span>
+            <span>${option.name}</span>
+          </div>
+          <div class="flex gap-1">
+            <button class="edit-option text-blue-500 hover:text-blue-700" data-index="${index}">
+              <i class="fa fa-pencil"></i>
+            </button>
+            <button class="delete-option text-red-500 hover:text-red-700" data-index="${index}">
+              <i class="fa fa-trash"></i>
+            </button>
+          </div>
+        `;
+        
+        optionsList.appendChild(item);
+        
+        // 添加事件监听器
+        item.querySelector('.edit-option').addEventListener('click', (e) => {
+          e.stopPropagation();
+          openEditModal(index);
+        });
+        
+        item.querySelector('.delete-option').addEventListener('click', (e) => {
+          e.stopPropagation();
+          deleteOption(index);
+        });
+        
+        item.addEventListener('click', () => {
+          openEditModal(index);
+        });
+      });
+    }
+    
+    // 渲染历史记录列表
+    function renderHistoryList() {
+      if (historyRecords.length === 0) {
+        historyList.innerHTML = '<p class="text-gray-500 text-center italic">暂无历史记录</p>';
+        return;
+      }
+      
+      historyList.innerHTML = '';
+      historyRecords.slice().reverse().forEach((record, index) => {
+        const item = document.createElement('div');
+        item.className = 'history-item flex items-center justify-between bg-gray-50 rounded-lg p-3 mb-2';
+        
+        const date = new Date(record.timestamp);
+        const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+        
+        item.innerHTML = `
+          <div class="flex items-center">
+            <span class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center mr-3">
+              ${record.icon}
+            </span>
+            <div>
+              <p class="font-medium">${record.name}</p>
+              <p class="text-xs text-gray-500">${formattedDate}</p>
+            </div>
+          </div>
+          <button class="reselect-option text-secondary hover:text-secondary/80" data-index="${historyRecords.length - 1 - index}">
+            <i class="fa fa-refresh"></i>
+          </button>
+        `;
+        
+        historyList.appendChild(item);
+        
+        // 添加事件监听器
+        item.querySelector('.reselect-option').addEventListener('click', () => {
+          const originalIndex = historyRecords.length - 1 - index;
+          reselectOption(originalIndex);
+        });
+      });
+    }
+    
+    // 旋转转盘
+    function spinWheel() {
+      if (isSpinning || foodOptions.length === 0) return;
+      
+      isSpinning = true;
+      spinButton.disabled = true;
+      spinButton.classList.add('opacity-50', 'cursor-not-allowed');
+      resultDisplay.classList.add('hidden');
+      
+      // 随机旋转角度 (3-5圈 + 随机角度)
+      const spinAngle = 1080 + Math.floor(Math.random() * 1080) + Math.floor(Math.random() * 360);
+      const sliceAngle = 360 / foodOptions.length;
+      
+      // 应用旋转动画
+      wheelElement.style.transform = `rotate(${spinAngle}deg)`;
+      
+      // 计算最终指向的选项
+      setTimeout(() => {
+        const normalizedAngle = spinAngle % 360;
+        const selectedIndex = Math.floor(normalizedAngle / sliceAngle);
+        const selectedOption = foodOptions[selectedIndex];
+        
+        // 显示结果
+        resultText.textContent = `今晚吃 ${selectedOption.icon} ${selectedOption.name}`;
+        resultDisplay.classList.remove('hidden');
+        
+        // 创建庆祝效果
+        createConfetti();
+        
+        isSpinning = false;
+      }, 5000); // 与CSS动画时间一致
+    }
+    
+    // 保存结果到历史记录
+    function saveResult() {
+      const result = resultText.textContent.replace('今晚吃 ', '');
+      const icon = result.charAt(0);
+      const name = result.slice(2);
+      
+      const record = {
+        id: Date.now(),
+        icon,
+        name,
+        timestamp: Date.now()
+      };
+      
+      historyRecords.push(record);
+      saveToLocalStorage();
+      renderHistoryList();
+      
+      // 显示保存成功提示
+      const saveButton = document.getElementById('saveResultButton');
+      const originalText = saveButton.innerHTML;
+      saveButton.innerHTML = '<i class="fa fa-check"></i> <span>已保存</span>';
+      saveButton.disabled = true;
+      saveButton.classList.add('bg-green-500');
+      
+      setTimeout(() => {
+        saveButton.innerHTML = originalText;
+        saveButton.disabled = false;
+        saveButton.classList.remove('bg-green-500');
+      }, 1500);
+    }
+    
+    // 再转一次
+    function spinAgain() {
+      resultDisplay.classList.add('hidden');
+      spinButton.disabled = false;
+      spinButton.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+    
+    // 添加新选项
+    function addOption() {
+      const name = newOptionInput.value.trim();
+      if (!name) return;
+      
+      const newOption = {
+        id: Date.now(),
+        name,
+        icon: getRandomEmoji()
+      };
+      
+      foodOptions.push(newOption);
+      newOptionInput.value = '';
+      
+      saveToLocalStorage();
+      renderWheel();
+      renderOptionsList();
+    }
+    
+    // 打开编辑模态框
+    function openEditModal(index) {
+      currentEditIndex = index;
+      const option = foodOptions[index];
+      editOptionInput.value = option.name;
+      editOptionModal.classList.remove('hidden');
+    }
+    
+    // 关闭编辑模态框
+    function closeEditModal() {
+      editOptionModal.classList.add('hidden');
+      currentEditIndex = -1;
+    }
+    
+    // 保存编辑
+    function saveEdit() {
+      if (currentEditIndex === -1) return;
+      
+      const name = editOptionInput.value.trim();
+      if (!name) return;
+      
+      foodOptions[currentEditIndex].name = name;
+      closeEditModal();
+      
+      saveToLocalStorage();
+      renderWheel();
+      renderOptionsList();
+    }
+    
+    // 删除选项
+    function deleteOption(index) {
+      if (confirm('确定要删除这个选项吗？')) {
+        foodOptions.splice(index, 1);
+        
+        saveToLocalStorage();
+        renderWheel();
+        renderOptionsList();
+      }
+    }
+    
+    // 重新选择历史记录中的选项
+    function reselectOption(index) {
+      const record = historyRecords[index];
+      resultText.textContent = `今晚吃 ${record.icon} ${record.name}`;
+      resultDisplay.classList.remove('hidden');
+      
+      // 滚动到结果区域
+      resultDisplay.scrollIntoView({ behavior: 'smooth' });
+    }
+    
+    // 清空历史记录
+    function clearHistory() {
+      if (confirm('确定要清空所有历史记录吗？')) {
+        historyRecords = [];
+        saveToLocalStorage();
+        renderHistoryList();
+      }
+    }
+    
+    // 获取随机食物表情
+    function getRandomEmoji() {
+      const emojis = ['🍚', '🍜', '🍲', '🍛', '🍣', '🍱', '🍤', '🍕', '🍔', '🍟', '🍗', '🍖', '🌭', '🌮', '🌯', '🥙', '🥘', '🥗', '🥫', '🍝', '🍰', '🍧', '🍨', '🍦', '🍩', '🍪', '🍫', '🍬', '🍭', '🍮', '🍯', '🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🍒', '🍑', '🍍', '🥭', '🥑', '🥝', '🥔', '🥕', '🥦', '🥬', '🥒', '🌶️', '🌽', '🥕', '🥔', '🍠', '🥐', '🥖', '🥨', '🥯', '🥞', '🧀', '🥚', '🍳', '🥓', '🥩', '🍗', '🍖', '🦴', '🌭', '🍔', '🍟', '🍕', '🌮', '🌯', '🥙', '🥘', '🥗', '🥫', '🍝', '🍜', '🍲', '🍛', '🍣', '🍱', '🍤', '🍚', '🍘', '🍥', '🍡', '🍢', '🍧', '🍨', '🍦', '🍰', '🍮', '🍭', '🍬', '🍫', '🍪', '🍩', '🍯', '🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🍒', '🍑', '🍍', '🥭', '🥑', '🥝'];
+      return emojis[Math.floor(Math.random() * emojis.length)];
+    }
+    
+    // 创建庆祝效果
+    function createConfetti() {
+      const colors = ['#FF6B35', '#4CB9E7', '#FFD166', '#06D6A0', '#118AB2', '#073B4C', '#EF476F'];
+      
+      for (let i = 0; i < 100; i++) {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti';
+        confetti.style.left = `${Math.random() * 100}vw`;
+        confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        confetti.style.animationDelay = `${Math.random() * 5}s`;
+        confetti.style.width = `${5 + Math.random() * 10}px`;
+        confetti.style.height = `${5 + Math.random() * 10}px`;
+        
+        document.body.appendChild(confetti);
+        
+        // 动画结束后移除元素
+        setTimeout(() => {
+          confetti.remove();
+        }, 5000);
+      }
+    }
+    
+    // 页面加载完成后初始化
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
